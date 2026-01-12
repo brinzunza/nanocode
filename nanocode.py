@@ -75,10 +75,25 @@ def grep(args):
 
 
 def bash(args):
-    result = subprocess.run(
-        args["cmd"], shell=True, capture_output=True, text=True, timeout=30
+    proc = subprocess.Popen(
+        args["cmd"], shell=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True
     )
-    return (result.stdout + result.stderr).strip() or "(empty)"
+    output_lines = []
+    try:
+        while True:
+            line = proc.stdout.readline()
+            if not line and proc.poll() is not None:
+                break
+            if line:
+                print(f"  {DIM}│ {line.rstrip()}{RESET}", flush=True)
+                output_lines.append(line)
+        proc.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        output_lines.append("\n(timed out after 30s)")
+    return "".join(output_lines).strip() or "(empty)"
 
 
 # --- Tool definitions: (description, schema, function) ---
