@@ -1,12 +1,41 @@
 #!/usr/bin/env python3
 """nanocode - minimal claude code alternative"""
 
-import glob as globlib, json, os, re, subprocess, urllib.request
+import argparse, glob as globlib, json, os, re, subprocess, urllib.request, ssl
+
+# Load .env file if it exists
+def load_env():
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    # Remove quotes if present
+                    value = value.strip().strip('"').strip("'")
+                    os.environ.setdefault(key.strip(), value)
+
+load_env()
+
+# SSL context for HTTPS requests
+def get_ssl_context():
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        # Fallback: create unverified context (less secure but works)
+        return ssl._create_unverified_context()
 
 # Ollama configuration
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 API_URL = f"{OLLAMA_HOST}/api/generate"
 MODEL = os.environ.get("MODEL", "HammerAI/hermes-3-llama-3.1:latest")
+
+# ChatGPT configuration
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+
 
 # ANSI colors
 RESET, BOLD, DIM = "\033[0m", "\033[1m", "\033[2m"
@@ -170,31 +199,30 @@ def make_tools_prompt():
     return "\n".join(tools_desc)
 
 
-def messages_to_prompt(messages):
-    """Convert messages array to a single prompt string"""
-    prompt_parts = []
-    for msg in messages:
-        role = msg["role"]
-        content = msg["content"]
-        if role == "system":
-            prompt_parts.append(f"System: {content}\n")
-        elif role == "user":
-            prompt_parts.append(f"User: {content}\n")
-        elif role == "assistant":
-            prompt_parts.append(f"Assistant: {content}\n")
-    prompt_parts.append("Assistant:")
-    return "\n".join(prompt_parts)
-
-
-def call_api(messages, system_prompt):
+def call_ollama_api(messages, model_name):
     """Call Ollama /api/generate endpoint"""
+    def messages_to_prompt(messages):
+        """Convert messages array to a single prompt string"""
+        prompt_parts = []
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            if role == "system":
+                prompt_parts.append(f"System: {content}\n")
+            elif role == "user":
+                prompt_parts.append(f"User: {content}\n")
+            elif role == "assistant":
+                prompt_parts.append(f"Assistant: {content}\n")
+        prompt_parts.append("Assistant:")
+        return "\n".join(prompt_parts)
+
     prompt = messages_to_prompt(messages)
 
     request = urllib.request.Request(
         API_URL,
         data=json.dumps(
             {
-                "model": MODEL,
+                "model": model_name,
                 "prompt": prompt,
                 "stream": False,
                 "options": {
@@ -206,9 +234,44 @@ def call_api(messages, system_prompt):
             "Content-Type": "application/json",
         },
     )
-    response = urllib.request.urlopen(request)
+    response = urllib.request.urlopen(request, context=get_ssl_context() if API_URL.startswith("https") else None)
     data = json.loads(response.read())
     return data["response"]
+
+
+def call_chatgpt_api(messages, model_name):
+    """Call OpenAI API"""
+    if not OPENAI_API_KEY:
+        return "Error: OPENAI_API_KEY environment variable not set."
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+    }
+
+    payload = {
+        "model": model_name,
+        "messages": messages,
+        "temperature": 0.7,
+    }
+
+    request = urllib.request.Request(
+        OPENAI_API_URL,
+        data=json.dumps(payload).encode(),
+        headers=headers,
+    )
+    response = urllib.request.urlopen(request, context=get_ssl_context())
+    data = json.loads(response.read())
+    return data["choices"][0]["message"]["content"]
+
+
+def call_api(api_provider, messages, model_name):
+    if api_provider == "ollama":
+        return call_ollama_api(messages, model_name)
+    elif api_provider == "chatgpt":
+        return call_chatgpt_api(messages, model_name)
+    else:
+        raise ValueError(f"Unknown API provider: {api_provider}")
 
 
 def parse_tool_call(text):
@@ -244,7 +307,26 @@ def render_markdown(text):
 
 
 def main():
-    print(f"{BOLD}nanocode{RESET} | {DIM}{MODEL} (Ollama) | {os.getcwd()}{RESET}\n")
+    parser = argparse.ArgumentParser(description="nanocode - minimal claude code alternative")
+    parser.add_argument("--api", type=str, default=None, choices=["ollama", "chatgpt"], help="API to use (auto-detected if not specified)")
+    parser.add_argument("--model", type=str, default=None, help="Model to use")
+    args = parser.parse_args()
+
+    # Auto-detect API provider: use ChatGPT if API key is set, otherwise use Ollama
+    if args.api:
+        api_provider = args.api
+    else:
+        api_provider = "chatgpt" if OPENAI_API_KEY else "ollama"
+
+    # Set default model based on API provider
+    if args.model:
+        model_name = args.model
+    elif api_provider == "chatgpt":
+        model_name = "gpt-4"
+    else:
+        model_name = MODEL
+
+    print(f"{BOLD}nanocode{RESET} | {DIM}{model_name} ({api_provider}) | {os.getcwd()}{RESET}\n")
     messages = []
     system_prompt = f"You are a concise coding assistant. Current working directory: {os.getcwd()}.\n\n{make_tools_prompt()}"
 
@@ -269,7 +351,7 @@ def main():
 
             # agentic loop: keep calling API until no more tool calls
             while True:
-                response_text = call_api(messages, system_prompt)
+                response_text = call_api(api_provider, messages, model_name)
                 tool_name, tool_args, explanation = parse_tool_call(response_text)
 
                 # Show explanation if present
