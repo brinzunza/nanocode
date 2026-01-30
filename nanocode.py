@@ -62,11 +62,12 @@ def read(args):
 def write(args):
     with open(args["path"], "w") as f:
         f.write(args["content"])
-    return "ok"
+    return f"Successfully wrote {args["content"][:12]}"
 
 
 def edit(args):
     text = open(args["path"]).read()
+    print(f"Read {args["path"].split('/')[-1]}")
     old, new = args["old"], args["new"]
     if old not in text:
         return "error: old_string not found"
@@ -78,7 +79,7 @@ def edit(args):
     )
     with open(args["path"], "w") as f:
         f.write(replacement)
-    return "ok"
+    return f"Edited {args["path"].split('/')[-1]}"
 
 
 def glob(args):
@@ -307,6 +308,7 @@ def render_markdown(text):
 
 
 def main():
+    total_tokens = 0
     parser = argparse.ArgumentParser(description="nanocode - minimal claude code alternative")
     parser.add_argument("--api", type=str, default=None, choices=["ollama", "chatgpt"], help="API to use (auto-detected if not specified)")
     parser.add_argument("--model", type=str, default=None, help="Model to use")
