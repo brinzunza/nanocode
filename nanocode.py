@@ -6,7 +6,7 @@ import glob as globlib, json, os, re, subprocess, urllib.request
 # Ollama configuration
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 API_URL = f"{OLLAMA_HOST}/api/generate"
-MODEL = os.environ.get("MODEL", "llama3.2")
+MODEL = os.environ.get("MODEL", "HammerAI/hermes-3-llama-3.1:latest")
 
 # ANSI colors
 RESET, BOLD, DIM = "\033[0m", "\033[1m", "\033[2m"
