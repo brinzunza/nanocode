@@ -15,21 +15,23 @@ Now powered by **Ollama** for local, privacy-friendly AI. No API keys required!
 
 ## Prerequisites
 
-Install [Ollama](https://ollama.ai) and pull the llama3.2 model:
+Install [Ollama](https://ollama.ai) and pull a compatible model:
 
 ```bash
 # Install Ollama (macOS/Linux)
 curl -fsSL https://ollama.ai/install.sh | sh
 
-# Pull the model
-ollama pull llama3.2:7b
+# Pull a recommended model (choose one):
+ollama pull hermes3          # BEST: Fine-tuned for tool calling
+ollama pull deepseek-r1:8b   # GOOD: Reasoning model, handles tools well
+ollama pull qwen2.5-coder    # GOOD: Code-focused, supports tools
 ```
 
 ## Usage
 
-Just run it - no API keys needed!
-
 ```bash
+ollama serve
+
 python nanocode.py
 ```
 
@@ -38,8 +40,13 @@ python nanocode.py
 Use environment variables to customize:
 
 ```bash
-# Use a different Ollama model
-export MODEL="mistral:7b"
+# Use a specific model from your list
+export MODEL="HammerAI/hermes-3-llama-3.1"  # Best for tool calling
+python nanocode.py
+
+# Or try these from your installed models:
+export MODEL="deepseek-r1:8b"        # Good reasoning
+export MODEL="devstral"              # Mistral's dev model
 python nanocode.py
 
 # Connect to remote Ollama instance
@@ -47,12 +54,10 @@ export OLLAMA_HOST="http://remote-server:11434"
 python nanocode.py
 ```
 
-**Available models:**
-- `llama3.2:7b` (default) - Fast, good for coding
-- `llama3.2:3b` - Even faster, lower resource usage
-- `codellama:13b` - Specialized for code
-- `mistral:7b` - Alternative general model
-- Any model from [ollama.ai/library](https://ollama.ai/library)
+**Models from your list that should work:**
+- ✅ `HammerAI/hermes-3-llama-3.1` - **BEST CHOICE** (fine-tuned for tools)
+- ✅ `deepseek-r1:8b` or `deepseek-r1` - Reasoning model
+- ✅ `devstral` - Mistral developer model
 
 ## Commands
 

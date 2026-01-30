@@ -213,19 +213,25 @@ def call_api(messages, system_prompt):
 
 def parse_tool_call(text):
     """Extract tool call JSON from response text"""
-    # Look for JSON object in the response
-    json_match = re.search(r'\{[\s\S]*?"tool"\s*:\s*"(\w+)"[\s\S]*?\}', text)
+    # Try to find JSON in the response - be more flexible with the pattern
+    # Match any JSON object that contains "tool" and "args" fields
+    json_pattern = r'\{[^{}]*"tool"\s*:\s*"[^"]+"\s*,\s*"args"\s*:\s*\{[^}]*\}[^{}]*\}'
+    json_match = re.search(json_pattern, text)
+
     if json_match:
         try:
-            tool_data = json.loads(json_match.group(0))
+            json_str = json_match.group(0)
+            tool_data = json.loads(json_str)
             if "tool" in tool_data and "args" in tool_data:
                 # Remove the JSON from the text
                 text_before = text[:json_match.start()].strip()
                 text_after = text[json_match.end():].strip()
                 explanation = (text_before + " " + text_after).strip()
                 return tool_data["tool"], tool_data["args"], explanation
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            # JSON parsing failed, return as regular text
             pass
+
     return None, None, text
 
 
