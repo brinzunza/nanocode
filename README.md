@@ -1,8 +1,8 @@
 # nanocode
 
-Minimal Claude Code alternative. Single Python file, zero dependencies, ~250 lines.
+Minimal agentic coding assistant. Single Python file, zero dependencies, ~250 lines.
 
-Built using Claude Code, then used to build itself.
+Now powered by **Ollama** for local, privacy-friendly AI. No API keys required!
 
 ![screenshot](screenshot.png)
 
@@ -13,29 +13,46 @@ Built using Claude Code, then used to build itself.
 - Conversation history
 - Colored terminal output
 
+## Prerequisites
+
+Install [Ollama](https://ollama.ai) and pull the llama3.2 model:
+
+```bash
+# Install Ollama (macOS/Linux)
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull the model
+ollama pull llama3.2:7b
+```
+
 ## Usage
 
+Just run it - no API keys needed!
+
 ```bash
-export ANTHROPIC_API_KEY="your-key"
 python nanocode.py
 ```
 
-### OpenRouter
+### Configuration
 
-Use [OpenRouter](https://openrouter.ai) to access any model:
+Use environment variables to customize:
 
 ```bash
-export OPENROUTER_API_KEY="your-key"
+# Use a different Ollama model
+export MODEL="mistral:7b"
+python nanocode.py
+
+# Connect to remote Ollama instance
+export OLLAMA_HOST="http://remote-server:11434"
 python nanocode.py
 ```
 
-To use a different model:
-
-```bash
-export OPENROUTER_API_KEY="your-key"
-export MODEL="openai/gpt-5.2"
-python nanocode.py
-```
+**Available models:**
+- `llama3.2:7b` (default) - Fast, good for coding
+- `llama3.2:3b` - Even faster, lower resource usage
+- `codellama:13b` - Specialized for code
+- `mistral:7b` - Alternative general model
+- Any model from [ollama.ai/library](https://ollama.ai/library)
 
 ## Commands
 
